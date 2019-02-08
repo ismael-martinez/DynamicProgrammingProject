@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from anytree import AnyNode, RenderTree
 import sys
 
 # Input railcarFile string
@@ -31,7 +32,12 @@ def stacksPreprocessing(stacksFile):
 
     return stacks_df
 
-# TODO Depth function
+# For a given container, get it's most recent depth data from Z
+# Input: cont string - containerID, Z DataFrame - Current containers in the stacks
+# Output: depth int
+def depth(cont, Z):
+    depth = Z['contDepth'].loc[Z['contID'] == cont]
+    return int(depth)
 
 # For a current set of containers, we want to know the container height of platformID
 # Input: Y DataFrame - the set of containers on the railcar, platformID int - the platform on the railcar
@@ -62,19 +68,18 @@ def valid(cont, Y, R):
     else:
         return 0
 
-# Input Y DataFrame - the set of containers on the railcar, R DataFrame - the target configuration of the railcar
+# Input Z DataFrame - the set of containers in the stack, Y DataFrame - the set of containers on the railcar, R DataFrame - the target configuration of the railcar
 # Output: validSet Series of strings - Set of container IDs of valid containers to move
-def validContainers(Y, R):
+def validContainers(Z, Y, R):
     # Calculate the set difference Z = R \ Y
     Y_set = set([tuple(line) for line in Y.values])
     R_set = set([tuple(line) for line in R.values])
-    Z = pd.DataFrame(list(R_set.difference(Y_set)), columns=R.columns)
-
+    print(Z.columns)
     validList = []
 
     for idx, row in Z.iterrows():
         container = row['contID']
-        if top(container, R) == height(Y, platformIndex(container, R)):
+        if top(container, R) == height(Y, platformIndex(container, R)) and depth(container, Z) < 2:
             validList.append(container)
 
     return validList
@@ -88,10 +93,6 @@ def main(argv):
     stacks_df = stacksPreprocessing(argv[0])
     railcar_df = railcarPreprocessing(argv[1])
 
-
-    #print(railcar_df)
-    #print(stacks_df)
-
     # We move one cart per step k, so k is also the number of carts moved
     # N is the total number of carts
     N = railcar_df.shape[0]
@@ -100,8 +101,28 @@ def main(argv):
     Y = railcar_df.drop(railcar_df.index[0:])
     Z = stacks_df
 
+    # Begin two trees to store the different paths and costs
+    rootNode = AnyNode(id='root', cost=0)
+   # rootCost = Node(0)
 
-    v = validContainers(Y, railcar_df)
+    for k in range(1):
+        validChoices = validContainers(Z, Y, railcar_df)
+        validNodes = [0]*len(validChoices)
+        validCosts = [3]*len(validChoices)
+        print(validNodes)
+        # v is a containerID - string
+        for v, i in zip(validChoices, range(len(validChoices))):
+            validNodes[i] = AnyNode(id=v, parent=rootNode, cost = depth(v,Z)+1)
+            #validCosts[i] = Node(depth(v,Z)+1, parent=rootCost)
+            # get Depth and put in the tree as well
+            # does anytree have a concept of 'arc cost'?
+            # Choose the arc with a minimum cost
+            # Similar to Dijkstra's, we make a single choice. The min cost of our current options
+            # from v, take the containerID and move there.
+            # Move that containerID row from Z to Y.
+        print(validNodes)
+    for pre, fill, node in RenderTree(rootNode):
+        print("%s%s, %s" % (pre, node.id, node.cost))
 
 
 
