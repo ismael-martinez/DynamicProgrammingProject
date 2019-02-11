@@ -122,7 +122,7 @@ def main(argv):
     # Begin two trees to store the different paths and costs
     rootNode = AnyNode(id='root', cost=0, set=set(), Z=Z, Y=Y)
 
-    for k in range(15):
+    for k in range(N+1):
         print('\n\n --------------------------------- Stage k=' + str(k) + ' ---------------------------------')
         leaves = rootNode.leaves
         for leaf in leaves:
@@ -132,7 +132,9 @@ def main(argv):
 
             validChoices = validContainers(Z, Y, railcar_df)
             validNodes = [0]*len(validChoices)
-            #print(validChoices)
+            print(leaf.id)
+            print(validChoices)
+
             # v is a containerID - string
             for v, i in zip(validChoices, range(len(validChoices))):
                 node_set = set(leaf.set)
@@ -144,37 +146,41 @@ def main(argv):
                 # from v, take the containerID and move there.
                 # Move that containerID row from Z to Y.
             if len(leaves) == 1:
-                Z_prime = Z
                 for u_k in leaf.children:
                     if u_k.cost == 1:
                         leaf.children = [u_k]
-                        Z, Y = move(u_k.id, Z, Y, railcar_df)
-                        u_k.Z = Z
-                        u_k.Y = Y
+                        Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
+                        u_k.Z = Z_u
+                        u_k.Y = Y_u
                         single=True
                         break
                 if single:
                     break
-
-                # Case 2: All options have a cost of 2 with 1 output node
-                if Z_prime['contID'].equals(Z['contID']):
-                    # No containers have cost 1
+                else:
+                    # Case 2: All options have a cost of 2 with 1 output node
+                    #if Z_prime['contID'].equals(Z['contID']):
+                        # No containers have cost 1
                     for u_k in leaf.children:
-                        Z, Y = move(u_k.id, Z, Y, railcar_df)
-                        u_k.Z = Z
-                        u_k.Y = Y
-                #    print(validChoices)
-                #    sys.exit('No choices are available with cost of 1')
+                        Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
+                        u_k.Z = Z_u
+                        u_k.Y = Y_u
+                    #    print(validChoices)
+                    #    sys.exit('No choices are available with cost of 1')
         # Case 3: There is more than one output node
         if len(leaves) > 1:
-            Z_prime = Z
             for pre, fill, node in RenderTree(rootNode):
                 print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
             for u_k in rootNode.leaves:
                 if u_k.cost == 1:
-                    Z, Y = move(u_k.id, Z, Y, railcar_df)
-                    u_k.Z = Z
-                    u_k.Y = Y
+                    Z = u_k.parent.Z
+                    Y = u_k.parent.Y
+                    leaf = u_k.parent
+                    print(u_k.id)
+                    print(u_k.parent.id)
+                    print(Y['contID'])
+                    Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
+                    u_k.Z = Z_u
+                    u_k.Y = Y_u
                     # Cut all branches except this one
                     leaf.children = [u_k]
                     fork = u_k
@@ -189,19 +195,45 @@ def main(argv):
                             fork = fork.parent
                     if single:
                         break
+
+            print('here')
             # Case 4: > 1 output nodes and no leaf has cost == 1
-            if Z_prime['contID'].equals(Z['contID']):
+            #Z = leaf.Z
+            #Y = leaf.Y
+
+            #if Z_prime['contID'].equals(Z['contID']):
                 # No containers have cost 1
+            if not single:
                 for u_k in leaf.children:
-                    Z, Y = move(u_k.id, Z, Y, railcar_df)
-                    u_k.Z = Z
-                    u_k.Y = Y
+                    Z = u_k.parent.Z
+                    Y = u_k.parent.Y
+                    Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
+                    u_k.Z = Z_u
+                    u_k.Y = Y_u
 
 
         for pre, fill, node in RenderTree(rootNode):
             print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
 
+    final_move = rootNode.leaves[0]
 
+    if final_move.Y.shape[0] == N:
+        print('All containers have been placed\n')
+        print('The containers in order are as follows.\n')
+        costs = [np.inf]*(N+1)
+        k = 0
+        for pre, fill, node in RenderTree(rootNode):
+
+            if node.id != 'root':
+                print('%s' %node.id)
+            costs[k] = node.cost
+            k += 1
+        sumC = sum(costs)
+        print('Optimal cost: ' + str(sumC))
+
+
+    else:
+        sys.exit('An error occured with the algorithm.')
 
 if __name__ == '__main__':
     main(sys.argv[1:])
