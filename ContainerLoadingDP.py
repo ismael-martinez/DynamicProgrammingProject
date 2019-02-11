@@ -122,7 +122,7 @@ def main(argv):
     # Begin two trees to store the different paths and costs
     rootNode = AnyNode(id='root', cost=0, set=set(), Z=Z, Y=Y)
 
-    for k in range(9):
+    for k in range(15):
         print('\n\n --------------------------------- Stage k=' + str(k) + ' ---------------------------------')
         leaves = rootNode.leaves
         for leaf in leaves:
@@ -151,8 +151,6 @@ def main(argv):
                         Z, Y = move(u_k.id, Z, Y, railcar_df)
                         u_k.Z = Z
                         u_k.Y = Y
-                        for pre, fill, node in RenderTree(rootNode):
-                            print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
                         single=True
                         break
                 if single:
@@ -165,16 +163,18 @@ def main(argv):
                         Z, Y = move(u_k.id, Z, Y, railcar_df)
                         u_k.Z = Z
                         u_k.Y = Y
-                for pre, fill, node in RenderTree(rootNode):
-                    print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
                 #    print(validChoices)
                 #    sys.exit('No choices are available with cost of 1')
         # Case 3: There is more than one output node
         if len(leaves) > 1:
+            Z_prime = Z
             for pre, fill, node in RenderTree(rootNode):
                 print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
             for u_k in rootNode.leaves:
                 if u_k.cost == 1:
+                    Z, Y = move(u_k.id, Z, Y, railcar_df)
+                    u_k.Z = Z
+                    u_k.Y = Y
                     # Cut all branches except this one
                     leaf.children = [u_k]
                     fork = u_k
@@ -182,14 +182,24 @@ def main(argv):
                     while True:
                         if len(fork.children) > 1:
                             fork.children = [child]
+                            single = True
                             break
                         else:
                             child = fork
                             fork = fork.parent
+                    if single:
+                        break
+            # Case 4: > 1 output nodes and no leaf has cost == 1
+            if Z_prime['contID'].equals(Z['contID']):
+                # No containers have cost 1
+                for u_k in leaf.children:
+                    Z, Y = move(u_k.id, Z, Y, railcar_df)
+                    u_k.Z = Z
+                    u_k.Y = Y
 
-                    break
-            for pre, fill, node in RenderTree(rootNode):
-                print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
+
+        for pre, fill, node in RenderTree(rootNode):
+            print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
 
 
 
