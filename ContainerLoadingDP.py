@@ -62,11 +62,30 @@ def platformIndex(cont, R):
     platformIndex = platformIndex.iloc[0]
     return platformIndex
 
+# Whether a container choice is valid given current railcar set Y and target R
+# Input: cont string - contID, Y DataFrame - set of containers in railcar, R DataFrame - the target config of all conts
+# Output: boolean of whether cont is valid
 def valid(cont, Y, R):
     if top(cont, R) == height(Y, platformIndex(cont, R)):
         return 1
     else:
         return 0
+
+# The ending state of Z and Y after movement of container from Z (stacks) to Y (railcar)
+# Input: cont string - containerID, Z DataFrame - set of containers in Stacks, Y DataFrame - set of containers in railcars,
+#       R DataFrame - target configuration of all containers
+def move(cont, Z, Y, R):
+    Z_stack = Z['contStackIndex'].loc[Z['contID'] == cont].iloc[0]
+    cont_depth = Z['contDepth'].loc[Z['contID'] == cont].iloc[0]
+    #print(Z[Z['contStackIndex'] == Z_stack])
+    for idx, c in Z[Z['contStackIndex'] == Z_stack].iterrows():
+        if c['contID'] != cont and c['contDepth'] > cont_depth:
+            Z.loc[idx, 'contDepth'] = np.where(Z.loc[idx, 'contDepth'] == 1, 0, 1)
+    Z = Z[Z['contID'] != cont]
+    #print(Z[Z['contStackIndex'] == Z_stack])
+    Y_row = R[R['contID'] == cont]
+    Y = Y.append(Y_row, ignore_index=True)
+    return Z, Y
 
 # Input Z DataFrame - the set of containers in the stack, Y DataFrame - the set of containers on the railcar, R DataFrame - the target configuration of the railcar
 # Output: validSet Series of strings - Set of container IDs of valid containers to move
@@ -74,7 +93,6 @@ def validContainers(Z, Y, R):
     # Calculate the set difference Z = R \ Y
     Y_set = set([tuple(line) for line in Y.values])
     R_set = set([tuple(line) for line in R.values])
-    print(Z.columns)
     validList = []
 
     for idx, row in Z.iterrows():
@@ -102,27 +120,76 @@ def main(argv):
     Z = stacks_df
 
     # Begin two trees to store the different paths and costs
-    rootNode = AnyNode(id='root', cost=0)
-   # rootCost = Node(0)
+    rootNode = AnyNode(id='root', cost=0, set=set(), Z=Z, Y=Y)
 
-    for k in range(1):
-        validChoices = validContainers(Z, Y, railcar_df)
-        validNodes = [0]*len(validChoices)
-        validCosts = [3]*len(validChoices)
-        print(validNodes)
-        # v is a containerID - string
-        for v, i in zip(validChoices, range(len(validChoices))):
-            validNodes[i] = AnyNode(id=v, parent=rootNode, cost = depth(v,Z)+1)
-            #validCosts[i] = Node(depth(v,Z)+1, parent=rootCost)
-            # get Depth and put in the tree as well
-            # does anytree have a concept of 'arc cost'?
-            # Choose the arc with a minimum cost
-            # Similar to Dijkstra's, we make a single choice. The min cost of our current options
-            # from v, take the containerID and move there.
-            # Move that containerID row from Z to Y.
-        print(validNodes)
-    for pre, fill, node in RenderTree(rootNode):
-        print("%s%s, %s" % (pre, node.id, node.cost))
+    for k in range(9):
+        print('\n\n --------------------------------- Stage k=' + str(k) + ' ---------------------------------')
+        leaves = rootNode.leaves
+        for leaf in leaves:
+            single=False
+            Z = leaf.Z
+            Y = leaf.Y
+
+            validChoices = validContainers(Z, Y, railcar_df)
+            validNodes = [0]*len(validChoices)
+            #print(validChoices)
+            # v is a containerID - string
+            for v, i in zip(validChoices, range(len(validChoices))):
+                node_set = set(leaf.set)
+                node_set.add(v)
+                validNodes[i] = AnyNode(id=v, parent=leaf, cost = depth(v, Z)+1, set=node_set)
+            # CASE 1: There exists at least 1 cost that is 1 - u_k becomes that container
+                # There is also only a single output node
+                # Similar to Dijkstra's, we make a single choice. The min cost of our current options
+                # from v, take the containerID and move there.
+                # Move that containerID row from Z to Y.
+            if len(leaves) == 1:
+                Z_prime = Z
+                for u_k in leaf.children:
+                    if u_k.cost == 1:
+                        leaf.children = [u_k]
+                        Z, Y = move(u_k.id, Z, Y, railcar_df)
+                        u_k.Z = Z
+                        u_k.Y = Y
+                        for pre, fill, node in RenderTree(rootNode):
+                            print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
+                        single=True
+                        break
+                if single:
+                    break
+
+                # Case 2: All options have a cost of 2 with 1 output node
+                if Z_prime['contID'].equals(Z['contID']):
+                    # No containers have cost 1
+                    for u_k in leaf.children:
+                        Z, Y = move(u_k.id, Z, Y, railcar_df)
+                        u_k.Z = Z
+                        u_k.Y = Y
+                for pre, fill, node in RenderTree(rootNode):
+                    print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
+                #    print(validChoices)
+                #    sys.exit('No choices are available with cost of 1')
+        # Case 3: There is more than one output node
+        if len(leaves) > 1:
+            for pre, fill, node in RenderTree(rootNode):
+                print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
+            for u_k in rootNode.leaves:
+                if u_k.cost == 1:
+                    # Cut all branches except this one
+                    leaf.children = [u_k]
+                    fork = u_k
+                    child = u_k
+                    while True:
+                        if len(fork.children) > 1:
+                            fork.children = [child]
+                            break
+                        else:
+                            child = fork
+                            fork = fork.parent
+
+                    break
+            for pre, fill, node in RenderTree(rootNode):
+                print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
 
 
 
