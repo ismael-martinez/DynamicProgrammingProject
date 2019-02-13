@@ -3,6 +3,7 @@ import pandas as pd
 from anytree import AnyNode, RenderTree
 import sys
 
+# railcarFile preprocessing
 # Input railcarFile string
 # Output railcar_df DataFrame
 def railcarPreprocessing(railcarFile):
@@ -19,6 +20,7 @@ def railcarPreprocessing(railcarFile):
     railcar_df = railcar_df.drop(['contInit', 'contNumb', 'carInit', 'carNumb', 'carSlotLevel'], axis=1)
     return railcar_df
 
+# stackFile preprocessing
 # Input stacksFile string
 # Output stacks_df DataFrame
 def stacksPreprocessing(stacksFile):
@@ -75,24 +77,28 @@ def valid(cont, Y, R):
 # Input: cont string - containerID, Z DataFrame - set of containers in Stacks, Y DataFrame - set of containers in railcars,
 #       R DataFrame - target configuration of all containers
 def move(cont, Z, Y, R):
+    # We introduce the stack index '-1' to mean 'ground'
     Z_stack = Z['contStackIndex'].loc[Z['contID'] == cont].iloc[0]
     cont_depth = Z['contDepth'].loc[Z['contID'] == cont].iloc[0]
-    #print(Z[Z['contStackIndex'] == Z_stack])
+
     for idx, c in Z[Z['contStackIndex'] == Z_stack].iterrows():
-        if c['contID'] != cont and c['contDepth'] > cont_depth:
+        if Z_stack != -1 and cont_depth == 0 and c['contID'] != cont and c['contDepth'] > cont_depth:
             Z.loc[idx, 'contDepth'] = np.where(Z.loc[idx, 'contDepth'] == 1, 0, 1)
+        elif c['contDepth'] == 0 and cont_depth == 1 and c['contID'] != cont:
+            Z.loc[idx, 'contStackIndex'] = -1
+        elif c['contDepth'] == 2 and cont_depth == 1 and c['contID'] != cont:
+            Z.loc[idx, 'contDepth'] = 0
+
     Z = Z[Z['contID'] != cont]
-    #print(Z[Z['contStackIndex'] == Z_stack])
     Y_row = R[R['contID'] == cont]
     Y = Y.append(Y_row, ignore_index=True)
     return Z, Y
 
+# Determine the containers that can be moved from Z to Y satisfying conditions of Depth and Y placement
 # Input Z DataFrame - the set of containers in the stack, Y DataFrame - the set of containers on the railcar, R DataFrame - the target configuration of the railcar
 # Output: validSet Series of strings - Set of container IDs of valid containers to move
 def validContainers(Z, Y, R):
     # Calculate the set difference Z = R \ Y
-    Y_set = set([tuple(line) for line in Y.values])
-    R_set = set([tuple(line) for line in R.values])
     validList = []
 
     for idx, row in Z.iterrows():
@@ -140,9 +146,9 @@ def main(argv):
                 node_set = set(leaf.set)
                 node_set.add(v)
                 validNodes[i] = AnyNode(id=v, parent=leaf, cost = depth(v, Z)+1, set=node_set)
+        # Since we only have two possible costs 1 and 2, we reduce the DP problem to Cases
             # CASE 1: There exists at least 1 cost that is 1 - u_k becomes that container
                 # There is also only a single output node
-                # Similar to Dijkstra's, we make a single choice. The min cost of our current options
                 # from v, take the containerID and move there.
                 # Move that containerID row from Z to Y.
             if len(leaves) == 1:
@@ -158,14 +164,11 @@ def main(argv):
                     break
                 else:
                     # Case 2: All options have a cost of 2 with 1 output node
-                    #if Z_prime['contID'].equals(Z['contID']):
                         # No containers have cost 1
                     for u_k in leaf.children:
                         Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
                         u_k.Z = Z_u
                         u_k.Y = Y_u
-                    #    print(validChoices)
-                    #    sys.exit('No choices are available with cost of 1')
         # Case 3: There is more than one output node
         if len(leaves) > 1:
             for pre, fill, node in RenderTree(rootNode):
@@ -196,12 +199,7 @@ def main(argv):
                     if single:
                         break
 
-            print('here')
             # Case 4: > 1 output nodes and no leaf has cost == 1
-            #Z = leaf.Z
-            #Y = leaf.Y
-
-            #if Z_prime['contID'].equals(Z['contID']):
                 # No containers have cost 1
             if not single:
                 for u_k in leaf.children:
@@ -225,7 +223,7 @@ def main(argv):
         for pre, fill, node in RenderTree(rootNode):
 
             if node.id != 'root':
-                print('%s' %node.id)
+                print('%s, %s' %(node.id, node.cost))
             costs[k] = node.cost
             k += 1
         sumC = sum(costs)
