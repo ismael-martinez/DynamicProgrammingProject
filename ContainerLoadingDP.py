@@ -209,7 +209,6 @@ def main(argv):
                     u_k.Z = Z_u
                     u_k.Y = Y_u
 
-
         for pre, fill, node in RenderTree(rootNode):
             print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
 
@@ -220,10 +219,11 @@ def main(argv):
         print('The containers in order are as follows.\n')
         costs = [np.inf]*(N+1)
         k = 0
+        print('containerID \t cost')
         for pre, fill, node in RenderTree(rootNode):
 
             if node.id != 'root':
-                print('%s, %s' %(node.id, node.cost))
+                print('%s \t %s' %(node.id, node.cost))
             costs[k] = node.cost
             k += 1
         sumC = sum(costs)
