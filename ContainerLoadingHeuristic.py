@@ -5,8 +5,7 @@ import sys
 import time
 import getopt
 
-# Dynamic Programming, forward chain approach to the Container Loading Problem. Since all our costs are 1 or 2, we have
-# split this problem into cases of whether there exists a cost of 1 or not.
+# Heuristic approach uses Greedy algorithm at each step while tree building
 
 # railcarFile preprocessing
 # Input railcarFile string
@@ -136,9 +135,6 @@ def main(stacksFile, railcarFile):
         print('\n\n --------------------------------- Stage k=' + str(k) + ' ---------------------------------')
         leaves = rootNode.leaves
         for leaf in leaves:
-            single=False
-            Z = leaf.Z
-            Y = leaf.Y
 
             validChoices = validContainers(Z, Y, railcar_df)
             validNodes = [0]*len(validChoices)
@@ -151,74 +147,20 @@ def main(stacksFile, railcarFile):
                 node_set.add(v)
                 validNodes[i] = AnyNode(id=v, parent=leaf, cost = depth(v, Z)+1, set=node_set)
         # Since we only have two possible costs 1 and 2, we reduce the DP problem to Cases
-            # CASE 1: There exists at least 1 cost that is 1 - u_k becomes that container
-                # There is also only a single output node
-                # from v, take the containerID and move there.
-                # Move that containerID row from Z to Y.
-            if len(leaves) == 1:
-                for u_k in leaf.children:
-                    if u_k.cost == 1:
-                        leaf.children = [u_k]
-                        Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
-                        u_k.Z = Z_u
-                        u_k.Y = Y_u
-                        single=True
-                        break
-                if single:
-                    break
-                else:
-                    # Case 2: All options have a cost of 2 with 1 output node
-                        # No containers have cost 1
-                    for u_k in leaf.children:
-                        Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
-                        u_k.Z = Z_u
-                        u_k.Y = Y_u
-        # Case 3: There is more than one output node
-        if len(leaves) > 1:
-            for pre, fill, node in RenderTree(rootNode):
-                print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
-            for u_k in rootNode.leaves:
-                if u_k.cost == 1:
-                    Z = u_k.parent.Z
-                    Y = u_k.parent.Y
-                    leaf = u_k.parent
-                    print(u_k.id)
-                    print(u_k.parent.id)
-                    print(Y['contID'])
-                    Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
-                    u_k.Z = Z_u
-                    u_k.Y = Y_u
-                    # Cut all branches except this one
-                    leaf.children = [u_k]
-                    fork = u_k
-                    child = u_k
-                    while True:
-                        if len(fork.children) > 1:
-                            fork.children = [child]
-                            single = True
-                            break
-                        else:
-                            child = fork
-                            fork = fork.parent
-                    if single:
-                        break
+            # HEURISTIC: Take the lowest cost. If multiple exist, select one at random
+            costs = [u_k.cost for u_k in leaf.children]
+            argmin_costs = costs.index(min(costs))
+            u_k = leaf.children[argmin_costs] # Greedy choice u_k
+            leaf.children = [u_k]
+            Z, Y = move(u_k.id, Z, Y, railcar_df)
 
-            # Case 4: > 1 output nodes and no leaf has cost == 1
-                # No containers have cost 1
-            if not single:
-                for u_k in leaf.children:
-                    Z = u_k.parent.Z
-                    Y = u_k.parent.Y
-                    Z_u, Y_u = move(u_k.id, Z, Y, railcar_df)
-                    u_k.Z = Z_u
-                    u_k.Y = Y_u
 
         for pre, fill, node in RenderTree(rootNode):
             print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
 
     final_move = rootNode.leaves[0]
 
-    if final_move.Y.shape[0] == N:
+    if len(final_move.set) == N:
         print('All containers have been placed\n')
         print('The containers in order are as follows.\n')
         costs = [np.inf]*(N+1)
@@ -236,7 +178,6 @@ def main(stacksFile, railcarFile):
 
     else:
         sys.exit('An error occured with the algorithm.')
-
 def usage():
     print(" -h Help \n-s stack file path \n-r railcar file path")
 
