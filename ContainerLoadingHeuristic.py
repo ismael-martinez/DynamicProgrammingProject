@@ -7,7 +7,7 @@ import getopt
 
 # Heuristic approach uses Greedy algorithm at each step while tree building
 
-# railcarFile preprocessing
+# railcarFile preprocessing in pandas
 # Input railcarFile string
 # Output railcar_df DataFrame
 def railcarPreprocessing(railcarFile):
@@ -24,7 +24,7 @@ def railcarPreprocessing(railcarFile):
     railcar_df = railcar_df.drop(['contInit', 'contNumb', 'carInit', 'carNumb', 'carSlotLevel'], axis=1)
     return railcar_df
 
-# stackFile preprocessing
+# stackFile preprocessing in pandas
 # Input stacksFile string
 # Output stacks_df DataFrame
 def stacksPreprocessing(stacksFile):
@@ -38,14 +38,14 @@ def stacksPreprocessing(stacksFile):
 
     return stacks_df
 
-# For a given container, get it's most recent depth data from Z
+# For a given container, get its most recent depth data from Z
 # Input: cont string - containerID, Z DataFrame - Current containers in the stacks
 # Output: depth int
 def depth(cont, Z):
     depth = Z['contDepth'].loc[Z['contID'] == cont]
     return int(depth)
 
-# For a current set of containers, we want to know the container height of platformID
+# For a current set of containers in Y, we want to know the container height of platformID
 # Input: Y DataFrame - the set of containers on the railcar, platformID int - the platform on the railcar
 # Output: height int
 def height(Y, platformID):
@@ -63,6 +63,7 @@ def top(cont, R):
 
 # Find the platform in R where cont resides
 # Input: cont string - the contID, R DataFrame - the set of all containers in their proper position on the railcars.
+# Ouput: platformIndex int
 def platformIndex(cont, R):
     platformIndex = R['platfSequIndex'].loc[R['contID'] == cont]
     platformIndex = platformIndex.iloc[0]
