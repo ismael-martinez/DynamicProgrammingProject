@@ -116,7 +116,7 @@ def validContainers(Z, Y, R):
 
 
 # Input: stackFile string, railcarFile string
-def main(stacksFile, railcarFile):
+def main(stacksFile, railcarFile, debug):
     # Read in 'Stacks" and "Railcar" files
     stacks_df = stacksPreprocessing(stacksFile)
     railcar_df = railcarPreprocessing(railcarFile)
@@ -133,14 +133,16 @@ def main(stacksFile, railcarFile):
     rootNode = AnyNode(id='root', cost=0, set=set(), Z=Z, Y=Y)
 
     for k in range(N):
-        print('\n\n --------------------------------- Stage k=' + str(k) + ' ---------------------------------')
+        if debug:
+            print('\n\n --------------------------------- Stage k=' + str(k) + ' ---------------------------------')
         leaves = rootNode.leaves
         for leaf in leaves:
 
             validChoices = validContainers(Z, Y, railcar_df)
             validNodes = [0]*len(validChoices)
-            print(leaf.id)
-            print("Valid choice: " + str(validChoices))
+            if debug:
+                print(leaf.id)
+                print("Valid choice: " + str(validChoices))
 
             # v is a containerID - string
             for v, i in zip(validChoices, range(len(validChoices))):
@@ -155,12 +157,13 @@ def main(stacksFile, railcarFile):
             leaf.children = [u_k]
             Z, Y = move(u_k.id, Z, Y, railcar_df)
 
-
-        for pre, fill, node in RenderTree(rootNode):
-            print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
+        if debug:
+            for pre, fill, node in RenderTree(rootNode):
+                print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
 
     final_move = rootNode.leaves[0]
-
+    for pre, fill, node in RenderTree(rootNode):
+        print("%s%s, %s, set=%s" % (pre, node.id, node.cost, node.set))
     if len(final_move.set) == N:
         print('All containers have been placed\n')
         print('The containers in order are as follows.\n')
@@ -185,10 +188,11 @@ def usage():
 if __name__ == '__main__':
     # Start timer
     start = time.time()
-    stacksFile=""
-    railcarFile=""
+    stacksFile = ""
+    railcarFile = ""
+    debug = False
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hs:r:")
+        opts, args = getopt.getopt(sys.argv[1:], "hds:r:")
     except getopt.GetoptError as err:
         usage()
         sys.exit('The command line inputs were not given properly')
@@ -197,6 +201,8 @@ if __name__ == '__main__':
             stacksFile = arg
         elif opt == '-r':
             railcarFile = arg
+        elif opt == '-d':
+            debug = True
         else:
             usage()
             sys.exit(2)
@@ -204,7 +210,7 @@ if __name__ == '__main__':
         usage()
         sys.exit(2)
 
-    main(stacksFile, railcarFile)
+    main(stacksFile, railcarFile, debug)
     print("\n------------------------------------------------")
     print("Time taken to complete in seconds:")
     print(time.time() - start)
